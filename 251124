@@ -1,0 +1,642 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 17.0 (Debian 17.0-1.pgdg120+1)
+-- Dumped by pg_dump version 17.0
+
+-- Started on 2024-11-25 13:07:51 UTC
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 2 (class 3079 OID 16477)
+-- Name: ltree; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS ltree WITH SCHEMA public;
+
+
+--
+-- TOC entry 3598 (class 0 OID 0)
+-- Dependencies: 2
+-- Name: EXTENSION ltree; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION ltree IS 'data type for hierarchical tree-like structures';
+
+
+--
+-- TOC entry 246 (class 1255 OID 16750)
+-- Name: update_subject_parent_path(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_subject_parent_path() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+	DECLARE
+		path ltree;
+	BEGIN
+		IF NEW.parent_id IS NULL THEN
+			NEW.parent_path = 'Top'::ltree;
+		ELSEIF TG_OP = 'INSERT' OR OLD.parent_id IS NULL OR OLD.parent_id != NEW.parent_id THEN
+			SELECT parent_path || name::text FROM subject WHERE id = NEW.parent_id INTO path;
+			IF path IS NULL THEN
+				RAISE EXCEPTION 'INVALID parent_id %', NEW.parent_id;
+			END IF;
+			NEW.parent_path = path;
+		END IF;
+		RETURN NEW;
+	END;
+$$;
+
+
+ALTER FUNCTION public.update_subject_parent_path() OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 232 (class 1259 OID 16797)
+-- Name: answer; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.answer (
+    question_id integer,
+    answer jsonb
+);
+
+
+ALTER TABLE public.answer OWNER TO postgres;
+
+--
+-- TOC entry 228 (class 1259 OID 16696)
+-- Name: question_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.question_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.question_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 230 (class 1259 OID 16752)
+-- Name: question; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.question (
+    id integer DEFAULT nextval('public.question_id_seq'::regclass) NOT NULL,
+    type_id integer,
+    status text,
+    subject_id integer,
+    user_create integer,
+    user_moderate integer,
+    create_date timestamp without time zone DEFAULT (now())::date,
+    moderate_date timestamp without time zone DEFAULT (now())::date
+);
+
+
+ALTER TABLE public.question OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 16787)
+-- Name: question_choise; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.question_choise (
+    question_id integer,
+    question_text text NOT NULL,
+    question_code text,
+    variant jsonb
+);
+
+
+ALTER TABLE public.question_choise OWNER TO postgres;
+
+--
+-- TOC entry 226 (class 1259 OID 16451)
+-- Name: question_status; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.question_status (
+    status text NOT NULL
+);
+
+
+ALTER TABLE public.question_status OWNER TO postgres;
+
+--
+-- TOC entry 224 (class 1259 OID 16428)
+-- Name: question_type_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.question_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.question_type_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 16429)
+-- Name: question_type; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.question_type (
+    id integer DEFAULT nextval('public.question_type_id_seq'::regclass) NOT NULL,
+    name text NOT NULL
+);
+
+
+ALTER TABLE public.question_type OWNER TO postgres;
+
+--
+-- TOC entry 222 (class 1259 OID 16414)
+-- Name: refresh_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.refresh_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.refresh_sessions_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 16415)
+-- Name: refresh_sessions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.refresh_sessions (
+    id integer DEFAULT nextval('public.refresh_sessions_id_seq'::regclass) NOT NULL,
+    user_name text,
+    refresh_uuid text,
+    user_agent text,
+    host text,
+    expires_in bigint,
+    create_time timestamp without time zone
+);
+
+
+ALTER TABLE public.refresh_sessions OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 16679)
+-- Name: subject_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.subject_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.subject_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 16730)
+-- Name: subject; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.subject (
+    id integer DEFAULT nextval('public.subject_id_seq'::regclass) NOT NULL,
+    comment text,
+    date_create timestamp without time zone DEFAULT (now())::date NOT NULL,
+    description text,
+    last_time_update timestamp without time zone DEFAULT (now())::date,
+    name text NOT NULL,
+    type text,
+    active boolean DEFAULT true,
+    parent_id integer,
+    parent_path public.ltree
+);
+
+
+ALTER TABLE public.subject OWNER TO postgres;
+
+--
+-- TOC entry 218 (class 1259 OID 16389)
+-- Name: user_role_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.user_role_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.user_role_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 16390)
+-- Name: user_role; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_role (
+    id integer DEFAULT nextval('public.user_role_id_seq'::regclass) NOT NULL,
+    role_name text,
+    create_time timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.user_role OWNER TO postgres;
+
+--
+-- TOC entry 220 (class 1259 OID 16399)
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 16400)
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    id integer DEFAULT nextval('public.users_id_seq'::regclass) NOT NULL,
+    user_name text,
+    role integer,
+    create_time timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- TOC entry 3592 (class 0 OID 16797)
+-- Dependencies: 232
+-- Data for Name: answer; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.answer (question_id, answer) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3590 (class 0 OID 16752)
+-- Dependencies: 230
+-- Data for Name: question; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.question (id, type_id, status, subject_id, user_create, user_moderate, create_date, moderate_date) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3591 (class 0 OID 16787)
+-- Dependencies: 231
+-- Data for Name: question_choise; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.question_choise (question_id, question_text, question_code, variant) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3586 (class 0 OID 16451)
+-- Dependencies: 226
+-- Data for Name: question_status; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.question_status (status) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3585 (class 0 OID 16429)
+-- Dependencies: 225
+-- Data for Name: question_type; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.question_type (id, name) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3583 (class 0 OID 16415)
+-- Dependencies: 223
+-- Data for Name: refresh_sessions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.refresh_sessions (id, user_name, refresh_uuid, user_agent, host, expires_in, create_time) FROM stdin;
+\.
+
+
+--
+-- TOC entry 3589 (class 0 OID 16730)
+-- Dependencies: 229
+-- Data for Name: subject; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.subject (id, comment, date_create, description, last_time_update, name, type, active, parent_id, parent_path) FROM stdin;
+7	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Администрирование	\N	t	\N	Top
+8	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Программирование	\N	t	\N	Top
+9	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Сети	\N	t	\N	Top
+10	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Безопасность	\N	t	\N	Top
+11	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Windows	\N	t	7	Top.Администрирование
+12	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Linux	\N	t	7	Top.Администрирование
+13	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Системы_виртуализации	\N	t	7	Top.Администрирование
+14	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	BackEnd	\N	t	8	Top.Программирование
+15	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	FrontEnd	\N	t	8	Top.Программирование
+16	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Проводные	\N	t	9	Top.Сети
+17	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Беспроводные	\N	t	9	Top.Сети
+18	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Базы_данных	\N	t	14	Top.Программирование.BackEnd
+19	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Assembler	\N	t	14	Top.Программирование.BackEnd
+20	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	HTML	\N	t	15	Top.Программирование.FrontEnd
+21	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	CSS	\N	t	15	Top.Программирование.FrontEnd
+22	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	JavaScript	\N	t	15	Top.Программирование.FrontEnd
+23	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Vue	\N	t	22	Top.Программирование.FrontEnd.JavaScript
+24	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	Angular	\N	t	22	Top.Программирование.FrontEnd.JavaScript
+25	\N	2024-11-14 00:00:00	\N	2024-11-14 00:00:00	React	\N	t	22	Top.Программирование.FrontEnd.JavaScript
+\.
+
+
+--
+-- TOC entry 3579 (class 0 OID 16390)
+-- Dependencies: 219
+-- Data for Name: user_role; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.user_role (id, role_name, create_time) FROM stdin;
+1	administrator	2024-11-14 11:17:46.702008
+2	moderator	2024-11-14 11:17:54.148239
+3	user	2024-11-14 11:17:59.672525
+\.
+
+
+--
+-- TOC entry 3581 (class 0 OID 16400)
+-- Dependencies: 221
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.users (id, user_name, role, create_time) FROM stdin;
+1	Алиса	1	2024-11-14 11:20:31.38663
+2	Боб	2	2024-11-14 11:20:41.282492
+3	Джон	3	2024-11-14 11:20:54.263364
+\.
+
+
+--
+-- TOC entry 3599 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: question_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.question_id_seq', 1, false);
+
+
+--
+-- TOC entry 3600 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: question_type_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.question_type_id_seq', 1, false);
+
+
+--
+-- TOC entry 3601 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: refresh_sessions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.refresh_sessions_id_seq', 1, false);
+
+
+--
+-- TOC entry 3602 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: subject_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.subject_id_seq', 25, true);
+
+
+--
+-- TOC entry 3603 (class 0 OID 0)
+-- Dependencies: 218
+-- Name: user_role_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.user_role_id_seq', 3, true);
+
+
+--
+-- TOC entry 3604 (class 0 OID 0)
+-- Dependencies: 220
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.users_id_seq', 3, true);
+
+
+--
+-- TOC entry 3422 (class 2606 OID 16761)
+-- Name: question question_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3416 (class 2606 OID 16457)
+-- Name: question_status question_status_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question_status
+    ADD CONSTRAINT question_status_pkey PRIMARY KEY (status);
+
+
+--
+-- TOC entry 3414 (class 2606 OID 16436)
+-- Name: question_type question_type_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question_type
+    ADD CONSTRAINT question_type_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3412 (class 2606 OID 16422)
+-- Name: refresh_sessions refresh_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.refresh_sessions
+    ADD CONSTRAINT refresh_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3420 (class 2606 OID 16740)
+-- Name: subject subject_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subject
+    ADD CONSTRAINT subject_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3408 (class 2606 OID 16398)
+-- Name: user_role user_role_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_role
+    ADD CONSTRAINT user_role_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3410 (class 2606 OID 16408)
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3417 (class 1259 OID 16748)
+-- Name: subject_parent_id_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX subject_parent_id_idx ON public.subject USING btree (parent_id);
+
+
+--
+-- TOC entry 3418 (class 1259 OID 16747)
+-- Name: subject_parent_path_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX subject_parent_path_idx ON public.subject USING gist (parent_path);
+
+
+--
+-- TOC entry 3432 (class 2620 OID 16751)
+-- Name: subject parent_path_sbj; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER parent_path_sbj BEFORE INSERT OR UPDATE ON public.subject FOR EACH ROW EXECUTE FUNCTION public.update_subject_parent_path();
+
+
+--
+-- TOC entry 3431 (class 2606 OID 16802)
+-- Name: answer answer_question_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.answer
+    ADD CONSTRAINT answer_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.question(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3430 (class 2606 OID 16792)
+-- Name: question_choise question_choise_question_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question_choise
+    ADD CONSTRAINT question_choise_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.question(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3425 (class 2606 OID 16767)
+-- Name: question question_status_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_status_fkey FOREIGN KEY (status) REFERENCES public.question_status(status);
+
+
+--
+-- TOC entry 3426 (class 2606 OID 16772)
+-- Name: question question_subject_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subject(id);
+
+
+--
+-- TOC entry 3427 (class 2606 OID 16762)
+-- Name: question question_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_type_id_fkey FOREIGN KEY (type_id) REFERENCES public.question_type(id);
+
+
+--
+-- TOC entry 3428 (class 2606 OID 16777)
+-- Name: question question_user_create_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_user_create_fkey FOREIGN KEY (user_create) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3429 (class 2606 OID 16782)
+-- Name: question question_user_moderate_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.question
+    ADD CONSTRAINT question_user_moderate_fkey FOREIGN KEY (user_moderate) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 3424 (class 2606 OID 16741)
+-- Name: subject subject_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subject
+    ADD CONSTRAINT subject_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.subject(id);
+
+
+--
+-- TOC entry 3423 (class 2606 OID 16409)
+-- Name: users users_role_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_role_fkey FOREIGN KEY (role) REFERENCES public.user_role(id);
+
+
+-- Completed on 2024-11-25 13:07:51 UTC
+
+--
+-- PostgreSQL database dump complete
+--
+

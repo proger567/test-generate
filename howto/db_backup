@@ -1,0 +1,39 @@
+### Запуск postgresql и pgadmin:
+
+Default username and password for posgresql and pgadmin:
+
+postgtesql:
+```
+postgres:pgpassword
+```
+
+pgadmin:
+```
+developer@mail.com:admin
+```
+
+Для первого запуска необходимо создать дерикторию `data` в каталоге с файлом docker-compose.yaml
+
+```bash
+mkdir data
+```
+
+Запуск контейнеров с базой и пгадмином:
+
+```bash
+docker-compose up -d
+```
+
+### Бекапирование и восстановление базы
+
+Для создания бекапа необходимо выполнить команду:
+
+```bash
+pg_dump -h 127.0.0.1 -U postgres -d generate > <backup_fileneme>
+```
+
+Для восстановления бекапа необходимо выполнить команду:
+
+```bash
+psql -U postgres -d generate -f 251124 -h 127.0.0.1
+```
