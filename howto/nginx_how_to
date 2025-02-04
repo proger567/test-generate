@@ -1,0 +1,7 @@
+ docker run -d --name my-nginx -p 8092:80 -v /home/user/TestGenerate/nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:latest
+
+
+back_login: 8090
+back_user: 8091
+nginx: 8092
+back_subjects: 8093
